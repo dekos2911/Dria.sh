@@ -1,139 +1,179 @@
 #!/bin/bash
 
+# Кольори
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 show_logo() {
-  echo -e '\033[0;34m'
+  clear
+  echo -e "${BLUE}"
   echo -e '██████╗ ███████╗██╗  ██╗ ██████╗  ███████╗'
   echo -e '██╔══██╗██╔════╝██║ ██╔╝██║   ██║ ██╔════╝'
   echo -e '██║  ██║█████╗  █████╔╝ ██║   ██║ ███████╗'
   echo -e '██║  ██║██╔══╝  ██╔═██╗ ██║   ██║ ╚════██║'
   echo -e '██████╔╝███████╗██║  ██╗╚██████╔╝ ███████║'
   echo -e '╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚══════╝'
-  echo -e '\e[0m'
-  echo -e "\n\nПідтримайте український проєкт DEKOS [🇺🇦]"
-  echo -e "Telegram: https://t.me/indusUA\n"
+  echo -e "${NC}"
+  echo -e "\nПідтримайте український проєкт DEKOS [🇺🇦]"
+  echo -e "Telegram: ${BLUE}https://t.me/indusUA${NC}\n"
+}
+
+check_ports() {
+  local ports=("4001" "11434")
+  local busy_ports=()
+  
+  for port in "${ports[@]}"; do
+    if lsof -i :"$port" >/dev/null; then
+      busy_ports+=("$port")
+    fi
+  done
+  
+  if [ ${#busy_ports[@]} -gt 0 ]; then
+    echo -e "${RED}Помилка: Наступні порти вже використовуються: ${busy_ports[*]}${NC}"
+    return 1
+  fi
+  return 0
+}
+
+install_dependencies() {
+  echo -e "\n${YELLOW}🔧 Встановлення залежностей...${NC}"
+  sudo apt update && sudo apt upgrade -y
+  sudo apt install -y wget curl git jq lsof screen unzip
+}
+
+install_ollama() {
+  echo -e "\n${YELLOW}🤖 Встановлення Ollama...${NC}"
+  curl -fsSL https://ollama.com/install.sh | sh
+  sudo systemctl enable ollama
+  sudo systemctl start ollama
+}
+
+install_dria() {
+  echo -e "\n${YELLOW}⚡ Встановлення Dria Launcher...${NC}"
+  curl -fsSL https://dria.co/launcher | bash
+  echo 'export PATH=$PATH:$HOME/.dria/bin' >> ~/.bashrc
+  source ~/.bashrc
 }
 
 install_node() {
-  echo -e "\n\033[1;34m===[ ВСТАНОВЛЕННЯ НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ ВСТАНОВЛЕННЯ НОДИ DEKOS ]===${NC}"
   
-  # Перевірка портів
-  if lsof -i :4001 >/dev/null; then
-    echo -e "\033[0;31mПомилка: Порт 4001 вже використовується!\033[0m"
+  if ! check_ports; then
     return 1
   fi
-
-  # Оновлення пакетів
-  echo -e "\n🔧 Оновлюю системні пакети..."
-  sudo apt update && sudo apt upgrade -y
-  sudo apt install -y wget curl git jq lsof screen unzip
-
-  # Встановлення Ollama
-  echo -e "\n🤖 Встановлюю Ollama..."
-  curl -fsSL https://ollama.com/install.sh | sh
-
-  # Встановлення Dria
-  echo -e "\n⚡ Встановлюю Dria Launcher..."
-  curl -fsSL https://dria.co/launcher | bash
-
-  # Налаштування середовища
-  source ~/.bashrc
-  echo -e "\n\033[0;32m✅ Нода DEKOS успішно встановлена!\033[0m"
+  
+  install_dependencies
+  install_ollama
+  install_dria
+  
+  echo -e "\n${GREEN}✅ Нода DEKOS успішно встановлена!${NC}"
+  echo -e "Виконайте команду: ${BLUE}source ~/.bashrc${NC} або перезапустіть термінал"
 }
 
 start_node() {
-  echo -e "\n\033[1;34m===[ ЗАПУСК НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ ЗАПУСК НОДИ DEKOS ]===${NC}"
   
   if ! command -v dkn-compute-launcher >/dev/null; then
-    echo -e "\033[0;31mПомилка: Спочатку встановіть ноду!\033[0m"
+    echo -e "${RED}Помилка: Спочатку встановіть ноду!${NC}"
     return 1
   fi
 
-  screen -dmS dekos_node dkn-compute-launcher start
-  echo -e "\n🔄 Нода DEKOS запущена у фоновому режимі"
-  echo -e "Для перегляду використовуйте: screen -r dekos_node"
+  if screen -list | grep -q "dekos_node"; then
+    echo -e "${YELLOW}ℹ️ Нода DEKOS вже запущена${NC}"
+    return 0
+  fi
+
+  screen -dmS dekos_node bash -c 'dkn-compute-launcher start > ~/.dekos.log 2>&1'
+  
+  echo -e "${GREEN}✅ Нода DEKOS запущена у фоновому режимі${NC}"
+  echo -e "Логи зберігаються у: ${BLUE}~/.dekos.log${NC}"
+  echo -e "Для перегляду логів: ${BLUE}tail -f ~/.dekos.log${NC}"
 }
 
 stop_node() {
-  echo -e "\n\033[1;34m===[ ЗУПИНКА НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ ЗУПИНКА НОДИ DEKOS ]===${NC}"
   
   if screen -list | grep -q "dekos_node"; then
     screen -ls | grep dekos_node | cut -d. -f1 | xargs kill
-    echo -e "\n🛑 Нода DEKOS успішно зупинена"
+    echo -e "${GREEN}✅ Нода DEKOS успішно зупинена${NC}"
   else
-    echo -e "\nℹ️ Нода DEKOS не була запущена"
+    echo -e "${YELLOW}ℹ️ Нода DEKOS не була запущена${NC}"
   fi
 }
 
 node_status() {
-  echo -e "\n\033[1;34m===[ СТАТУС НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ СТАТУС НОДИ DEKOS ]===${NC}"
   
   # Перевірка Ollama
-  if command -v ollama >/dev/null; then
-    echo -e "🤖 Ollama: \033[0;32mвстановлено\033[0m"
-    ollama list || echo "Моделі не знайдено"
+  if systemctl is-active --quiet ollama; then
+    echo -e "🤖 Ollama: ${GREEN}активна${NC}"
   else
-    echo -e "🤖 Ollama: \033[0;31mне встановлено\033[0m"
+    echo -e "🤖 Ollama: ${RED}не активна${NC}"
   fi
 
   # Перевірка Dria
   if command -v dkn-compute-launcher >/dev/null; then
-    echo -e "\n⚡ Dria: \033[0;32mвстановлено\033[0m"
-    dkn-compute-launcher info || echo "Інформація недоступна"
+    echo -e "⚡ Dria Launcher: ${GREEN}встановлено${NC}"
   else
-    echo -e "\n⚡ Dria: \033[0;31mне встановлено\033[0m"
+    echo -e "⚡ Dria Launcher: ${RED}не встановлено${NC}"
   fi
 
   # Перевірка запущених процесів
-  echo -e "\n🔍 Активні процеси:"
   if screen -list | grep -q "dekos_node"; then
-    echo -e "🟢 Нода DEKOS: \033[0;32mпрацює\033[0m"
+    echo -e "🟢 Нода DEKOS: ${GREEN}працює${NC}"
+    echo -e "\nОстанні логи:"
+    tail -n 5 ~/.dekos.log 2>/dev/null || echo "Логи відсутні"
   else
-    echo -e "🔴 Нода DEKOS: \033[0;31mне активна\033[0m"
+    echo -e "🔴 Нода DEKOS: ${RED}не активна${NC}"
   fi
 }
 
 update_node() {
-  echo -e "\n\033[1;34m===[ ОНОВЛЕННЯ НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ ОНОВЛЕННЯ НОДИ DEKOS ]===${NC}"
   
   if command -v dkn-compute-launcher >/dev/null; then
-    echo -e "\n🔄 Оновлюю Dria Launcher..."
     curl -fsSL https://dria.co/launcher | bash
-    echo -e "\n\033[0;32m✅ Ноду DEKOS успішно оновлено!\033[0m"
+    echo -e "${GREEN}✅ Dria Launcher оновлено${NC}"
   else
-    echo -e "\n\033[0;31mПомилка: Dria Launcher не встановлено!\033[0m"
+    echo -e "${RED}Помилка: Dria Launcher не встановлено!${NC}"
+  fi
+  
+  if command -v ollama >/dev/null; then
+    sudo systemctl stop ollama
+    curl -fsSL https://ollama.com/install.sh | sh
+    sudo systemctl start ollama
+    echo -e "${GREEN}✅ Ollama оновлено${NC}"
+  else
+    echo -e "${RED}Помилка: Ollama не встановлено!${NC}"
   fi
 }
 
 remove_node() {
-  echo -e "\n\033[1;34m===[ ВИДАЛЕННЯ НОДИ DEKOS ]===\033[0m"
+  echo -e "\n${BLUE}===[ ВИДАЛЕННЯ НОДИ DEKOS ]===${NC}"
   
-  # Зупинка процесів
-  if screen -list | grep -q "dekos_node"; then
-    echo "🛑 Зупиняю ноду..."
-    screen -ls | grep dekos_node | cut -d. -f1 | xargs kill
-  fi
-
-  # Видалення Dria
+  stop_node
+  
   if command -v dkn-compute-launcher >/dev/null; then
-    echo "🗑️ Видаляю Dria Launcher..."
     dkn-compute-launcher uninstall
+    rm -rf ~/.dria
+    echo -e "${GREEN}✅ Dria Launcher видалено${NC}"
   fi
-
-  # Видалення Ollama
+  
   if command -v ollama >/dev/null; then
-    echo "🧹 Видаляю Ollama..."
+    sudo systemctl stop ollama
     sudo rm -rf /usr/local/bin/ollama ~/.ollama
+    echo -e "${GREEN}✅ Ollama видалено${NC}"
   fi
-
-  # Очищення файлів
-  rm -rf ~/.dria
-  echo -e "\n✅ Ноду DEKOS успішно видалено"
+  
+  echo -e "\n${GREEN}✅ Ноду DEKOS успішно видалено${NC}"
 }
 
 show_menu() {
-  clear
   show_logo
-  echo -e "\nМеню керування нодою DEKOS:"
+  echo -e "\n${BLUE}Меню керування нодою DEKOS:${NC}"
   echo "1. 📥 Встановити ноду"
   echo "2. 🚀 Запустити ноду"
   echo "3. ⏹️ Зупинити ноду"
@@ -156,7 +196,7 @@ while true; do
     5) update_node ;;
     6) remove_node ;;
     7) exit 0 ;;
-    *) echo -e "\n\033[0;31mНевірний вибір!\033[0m Спробуйте ще раз." ;;
+    *) echo -e "\n${RED}Невірний вибір! Спробуйте ще раз.${NC}" ;;
   esac
   
   echo -ne "\nНатисніть Enter для продовження..."
