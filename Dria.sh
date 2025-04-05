@@ -80,23 +80,35 @@ remove_node() {
   echo "✔ Нода видалена"
 }
 
+view_logs() {
+  echo "▶ Перевірка логів..."
+  # Перевірка наявності логів, наприклад, у домашньому каталозі або в /var/log
+  if [ -f "~/.dex/logs.txt" ]; then
+    cat ~/.dex/logs.txt
+  else
+    echo "❗ Лог файли не знайдені. Перевірте, чи нода була запущена."
+  fi
+}
+
 while true; do
   show_logo
   echo -e "\nМеню:"
   echo "1. Встановити ноду"
   echo "2. Запустити ноду"
-  echo "4. Перевірити статус"
-  echo "6. Видалити ноду"
-  echo "7. Вийти"
+  echo "3. Перевірити статус"
+  echo "4. Перевірити логи"
+  echo "5. Видалити ноду"
+  echo "6. Вийти"
   
   read -p "Вибір: " choice
   case $choice in
-    1) install_node ; continue ;;
-    2) start_node ; continue ;;
-    4) node_status ; continue ;;
-    6) remove_node ; continue ;;
-    7) exit 0 ;;
-    *) echo "Невірний вибір"; sleep 1 ; continue ;;
+    1) install_node ;;
+    2) start_node ;;
+    3) node_status ;;
+    4) view_logs ;;
+    5) remove_node ;;
+    6) exit 0 ;;
+    *) echo "Невірний вибір"; sleep 1 ;;
   esac
-  
+  read -p "Натисніть Enter для повернення до меню..."
 done
