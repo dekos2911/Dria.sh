@@ -7,7 +7,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 LOG_FILE="$HOME/dria.log"
-SCREEN_SESSION="dria_node"
 
 show_logo() {
   echo -e "${RED}"
@@ -30,7 +29,7 @@ install_node() {
 
   echo -e "${YELLOW}🔄 Оновлюємо систему...${NC}"
   sudo apt update && sudo apt upgrade -y
-  sudo apt install -y wget curl git jq lsof unzip screen
+  sudo apt install -y wget curl git jq lsof unzip
 
   echo -e "${YELLOW}⬇️ Встановлюємо Ollama...${NC}"
   curl -fsSL https://ollama.com/install.sh | sh
@@ -50,25 +49,30 @@ start_node() {
     return 1
   fi
 
-  if screen -list | grep -q "$SCREEN_SESSION"; then
+  # Перевіряємо, чи вже існує screen-сесія
+  if screen -list | grep -q "dria_node"; then
     echo -e "${YELLOW}ℹ️ Нода вже працює у screen-сесії.${NC}"
-  else
-    screen -dmS "$SCREEN_SESSION" bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
-    echo -e "${GREEN}✅ Нода запущена у screen!${NC}"
+    echo -e "${GREEN}🖥️ Щоб підключитись до сесії: screen -r dria_node${NC}"
+    echo -e "${RED}❌ Щоб вийти з сесії та залишити її у фоні: натисніть Ctrl+A, потім D${NC}"
+    return 0
   fi
 
-  echo -e "${YELLOW}🖥️ Щоб підключитись до сесії: ${GREEN}screen -r $SCREEN_SESSION${NC}"
-  echo -e "${YELLOW}❌ Щоб вийти з сесії та залишити її у фоні: натисніть ${GREEN}Ctrl+A, потім D${NC}"
+  echo -e "${YELLOW}📡 Створюємо нову screen-сесію для запуску ноди...${NC}"
+
+  screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee -a '$LOG_FILE'"
+  echo -e "${GREEN}✅ Нода запущена у screen-сесії! Логи можна переглядати в реальному часі.${NC}"
 }
 
 stop_node() {
   echo -e "${YELLOW}🛑 Зупинка ноди...${NC}"
 
-  if screen -list | grep -q "$SCREEN_SESSION"; then
-    screen -S "$SCREEN_SESSION" -X quit
-    echo -e "${GREEN}✅ Нода зупинена.${NC}"
+  PID=$(pgrep -f "dkn-compute-launcher")
+
+  if [[ -n "$PID" ]]; then
+    kill "$PID"
+    echo -e "${GREEN}✅ Нода зупинена (PID: $PID)${NC}"
   else
-    echo -e "${YELLOW}ℹ️ Нода не запущена або вже зупинена.${NC}"
+    echo -e "${YELLOW}ℹ️ Нода вже зупинена або не знайдена.${NC}"
   fi
 }
 
@@ -85,8 +89,8 @@ view_logs() {
 node_status() {
   echo -e "${YELLOW}📊 Перевірка статусу ноди:${NC}"
 
-  if screen -list | grep -q "$SCREEN_SESSION"; then
-    echo -e "${GREEN}🟢 Нода активна у screen-сесії (${SCREEN_SESSION})${NC}"
+  if pgrep -f "dkn-compute-launcher" &>/dev/null; then
+    echo -e "${GREEN}🟢 Нода активна (PID: $(pgrep -f dkn-compute-launcher))${NC}"
   else
     echo -e "${RED}🔴 Нода неактивна${NC}"
   fi
@@ -105,7 +109,7 @@ show_menu() {
   show_logo
   echo -e "${GREEN}Меню Dria Node:${NC}"
   echo "1. 📥 Встановити ноду"
-  echo "2. 🚀 Запустити ноду (screen)"
+  echo "2. 🚀 Запустити ноду"
   echo "3. ⏹️ Зупинити ноду"
   echo "4. 📊 Статус ноди"
   echo "5. 📜 Переглянути логи"
@@ -129,6 +133,6 @@ while true; do
     *) echo -e "${RED}❗ Невірний вибір!${NC}" ;;
   esac
 
-  echo -e "\n${YELLOW}Натисніть Enter, щоб продовжити...${NC}"
+  echo -e "\n${YELLOW}Натисніть Enter, щоб повернутись до меню...${NC}"
   read -r
 done
