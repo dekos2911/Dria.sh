@@ -44,9 +44,11 @@ install_and_start_node() {
 
   echo -e "${GREEN}✅ Встановлення завершено!${NC}"
 
-  # Запуск ноди без screen-сесії, логи одразу виводяться в термінал
+  # Запуск ноди в фоновому режимі
   echo -e "${YELLOW}🚀 Запуск ноди...${NC}"
-  dkn-compute-launcher start 2>&1 | tee -a "$LOG_FILE"
+  nohup dkn-compute-launcher start > "$LOG_FILE" 2>&1 &
+
+  echo -e "${GREEN}✅ Нода запущена в фоновому режимі! Логи зберігаються в $LOG_FILE.${NC}"
 }
 
 stop_node() {
@@ -100,23 +102,4 @@ show_menu() {
   echo "4. 📜 Переглянути логи"
   echo "5. 🗑️ Видалити ноду"
   echo "6. ❌ Вийти"
-  echo -ne "\n${YELLOW}Ваш вибір: ${NC}"
-}
-
-while true; do
-  show_menu
-  read -r choice
-
-  case $choice in
-    1) install_and_start_node ;;
-    2) stop_node ;;
-    3) node_status ;;
-    4) view_logs ;;
-    5) remove_node ;;
-    6) echo -e "${GREEN}👋 До зустрічі!${NC}"; exit 0 ;;
-    *) echo -e "${RED}❗ Невірний вибір!${NC}" ;;
-  esac
-
-  echo -e "\n${YELLOW}Натисніть Enter, щоб повернутись до меню...${NC}"
-  read -r
-done
+  echo -ne "\n${YELLOW}Ваш вибір
