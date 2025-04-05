@@ -21,7 +21,7 @@ show_logo() {
 
 install_node() {
   echo -e "${YELLOW}➡️ Починаємо встановлення ноди Dria...${NC}"
-  
+
   if lsof -i :4001 >/dev/null; then
     echo -e "${RED}❌ Порт 4001 вже зайнятий!${NC}"
     return 1
@@ -42,33 +42,33 @@ install_node() {
 }
 
 start_node() {
-  echo -e "${YELLOW}🚀 Запуск ноди...${NC}"
-  
+  echo -e "${YELLOW}🚀 Запуск ноди у screen-сесії...${NC}"
+
   if ! command -v dkn-compute-launcher &>/dev/null; then
     echo -e "${RED}❌ Нода не встановлена! Спочатку виконайте встановлення.${NC}"
     return 1
   fi
 
-  echo -e "${GREEN}🔧 Запускаємо процес у screen-сесії...${NC}"
-  screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
-  echo -e "${GREEN}🟢 Нода працює у фоні. Для перегляду логів виконайте:${NC}"
-  echo -e "${YELLOW}screen -r dria_node${NC}"
-  echo -e "${YELLOW}Ctrl+A D${NC} — щоб приховати логи та повернутись до терміналу"
+  if screen -list | grep -q "dria_node"; then
+    echo -e "${YELLOW}ℹ️ Нода вже працює у screen-сесії.${NC}"
+  else
+    screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
+    echo -e "${GREEN}🟢 Нода запущена у фоні через screen.${NC}"
+  fi
+
+  echo -e "${YELLOW}👉 Для перегляду логів введи:${NC} ${GREEN}screen -r dria_node${NC}"
+  echo -e "${YELLOW}📤 Щоб повернутись назад: натисни ${GREEN}Ctrl+A D${NC}"
 }
 
 stop_node() {
   echo -e "${YELLOW}🛑 Зупинка ноди...${NC}"
-  
-  PID=$(pgrep -f "dkn-compute-launcher")
 
-  if [[ -n "$PID" ]]; then
-    kill "$PID"
-    echo -e "${GREEN}✅ Нода зупинена (PID: $PID)${NC}"
+  if screen -list | grep -q "dria_node"; then
+    screen -S dria_node -X quit
+    echo -e "${GREEN}✅ Нода зупинена (screen-сесія завершена)${NC}"
   else
     echo -e "${YELLOW}ℹ️ Нода вже зупинена або не знайдена.${NC}"
   fi
-
-  screen -S dria_node -X quit &>/dev/null
 }
 
 view_logs() {
@@ -83,9 +83,9 @@ view_logs() {
 
 node_status() {
   echo -e "${YELLOW}📊 Перевірка статусу ноди:${NC}"
-  
-  if pgrep -f "dkn-compute-launcher" &>/dev/null; then
-    echo -e "${GREEN}🟢 Нода активна (PID: $(pgrep -f dkn-compute-launcher))${NC}"
+
+  if screen -list | grep -q "dria_node"; then
+    echo -e "${GREEN}🟢 Нода активна (запущена у screen-сесії)${NC}"
   else
     echo -e "${RED}🔴 Нода неактивна${NC}"
   fi
