@@ -18,7 +18,8 @@ install_node() {
   # Перевірка портів
   if lsof -i :4001 | grep -q LISTEN; then
     echo "❗ Помилка: порт 4001 вже використовується"
-    return 1
+    sleep 2
+    return
   fi
 
   # Оновлення системи
@@ -30,39 +31,45 @@ install_node() {
     echo "Встановлення Ollama..."
     curl -fsSL https://ollama.com/install.sh | sh || {
       echo "❗ Не вдалося встановити Ollama"
-      return 1
+      sleep 2
+      return
     }
   fi
 
-  # Спробувати альтернативний спосіб встановлення лаунчера
-  echo "Спробую альтернативний метод встановлення лаунчера..."
+  # Встановлення лаунчера
+  echo "Спробую встановити лаунчер..."
   if ! curl -fsSL https://dria.co/launcher | bash; then
-    echo "❗ Не вдалося встановити лаунчер. Можливі рішення:"
-    echo "1. Спробуйте пізніше"
-    echo "2. Зверніться до підтримки Dria/DEX"
-    echo "3. Встановіть лаунчер вручну"
-    return 1
+    echo "❗ Не вдалося встановити лаунчер автоматично"
+    echo "Спробуйте встановити його вручну:"
+    echo "curl -fsSL https://dria.co/launcher | bash"
+    sleep 3
+    return
   fi
 
   source ~/.bashrc
-  echo "✔ Встановлення завершено"
+  echo "✔ Встановлення завершено успішно!"
+  sleep 2
 }
 
 start_node() {
   if command -v dkn-compute-launcher >/dev/null; then
     echo "▶ Запуск ноди..."
     screen -dmS dexnode dkn-compute-launcher start
-    echo "Нода запущена у вікні screen (dexnode)"
+    echo "✔ Нода запущена у вікні screen (dexnode)"
+    sleep 2
   else
     echo "❗ Лаунчер не знайдено. Спочатку виконайте встановлення."
+    sleep 2
   fi
 }
 
 node_status() {
   if command -v dkn-compute-launcher >/dev/null; then
     dkn-compute-launcher points
+    read -p "Натисніть Enter для продовження..."
   else
     echo "Лаунчер не встановлено"
+    sleep 2
   fi
 }
 
@@ -77,17 +84,8 @@ remove_node() {
   if screen -list | grep -q "dexnode"; then
     screen -S dexnode -X quit
   fi
-  echo "✔ Нода видалена"
-}
-
-view_logs() {
-  echo "▶ Перевірка логів..."
-  # Перевірка наявності логів, наприклад, у домашньому каталозі або в /var/log
-  if [ -f "~/.dex/logs.txt" ]; then
-    cat ~/.dex/logs.txt
-  else
-    echo "❗ Лог файли не знайдені. Перевірте, чи нода була запущена."
-  fi
+  echo "✔ Нода видалена успішно!"
+  sleep 2
 }
 
 while true; do
@@ -95,20 +93,30 @@ while true; do
   echo -e "\nМеню:"
   echo "1. Встановити ноду"
   echo "2. Запустити ноду"
-  echo "3. Перевірити статус"
-  echo "4. Перевірити логи"
-  echo "5. Видалити ноду"
-  echo "6. Вийти"
+  echo "4. Перевірити статус"
+  echo "6. Видалити ноду"
+  echo "7. Вийти"
   
   read -p "Вибір: " choice
   case $choice in
-    1) install_node ;;
-    2) start_node ;;
-    3) node_status ;;
-    4) view_logs ;;
-    5) remove_node ;;
-    6) exit 0 ;;
-    *) echo "Невірний вибір"; sleep 1 ;;
+    1) 
+      install_node
+      ;;
+    2) 
+      start_node
+      ;;
+    4) 
+      node_status
+      ;;
+    6) 
+      remove_node
+      ;;
+    7) 
+      exit 0
+      ;;
+    *) 
+      echo "Невірний вибір"
+      sleep 1
+      ;;
   esac
-  read -p "Натисніть Enter для повернення до меню..."
 done
