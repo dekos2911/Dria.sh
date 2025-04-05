@@ -7,6 +7,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 LOG_FILE="$HOME/dria.log"
+SCREEN_SESSION="dria_node"
 
 show_logo() {
   echo -e "${RED}"
@@ -49,25 +50,25 @@ start_node() {
     return 1
   fi
 
-  if screen -list | grep -q "dria_node"; then
+  if screen -list | grep -q "$SCREEN_SESSION"; then
     echo -e "${YELLOW}ℹ️ Нода вже працює у screen-сесії.${NC}"
   else
-    screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
-    echo -e "${GREEN}🟢 Нода запущена у фоні через screen.${NC}"
+    screen -dmS "$SCREEN_SESSION" bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
+    echo -e "${GREEN}✅ Нода запущена у screen!${NC}"
   fi
 
-  echo -e "${YELLOW}👉 Для перегляду логів введи:${NC} ${GREEN}screen -r dria_node${NC}"
-  echo -e "${YELLOW}📤 Щоб повернутись назад: натисни ${GREEN}Ctrl+A D${NC}"
+  echo -e "${YELLOW}🖥️ Щоб підключитись до сесії: ${GREEN}screen -r $SCREEN_SESSION${NC}"
+  echo -e "${YELLOW}❌ Щоб вийти з сесії та залишити її у фоні: натисніть ${GREEN}Ctrl+A, потім D${NC}"
 }
 
 stop_node() {
   echo -e "${YELLOW}🛑 Зупинка ноди...${NC}"
 
-  if screen -list | grep -q "dria_node"; then
-    screen -S dria_node -X quit
-    echo -e "${GREEN}✅ Нода зупинена (screen-сесія завершена)${NC}"
+  if screen -list | grep -q "$SCREEN_SESSION"; then
+    screen -S "$SCREEN_SESSION" -X quit
+    echo -e "${GREEN}✅ Нода зупинена.${NC}"
   else
-    echo -e "${YELLOW}ℹ️ Нода вже зупинена або не знайдена.${NC}"
+    echo -e "${YELLOW}ℹ️ Нода не запущена або вже зупинена.${NC}"
   fi
 }
 
@@ -84,8 +85,8 @@ view_logs() {
 node_status() {
   echo -e "${YELLOW}📊 Перевірка статусу ноди:${NC}"
 
-  if screen -list | grep -q "dria_node"; then
-    echo -e "${GREEN}🟢 Нода активна (запущена у screen-сесії)${NC}"
+  if screen -list | grep -q "$SCREEN_SESSION"; then
+    echo -e "${GREEN}🟢 Нода активна у screen-сесії (${SCREEN_SESSION})${NC}"
   else
     echo -e "${RED}🔴 Нода неактивна${NC}"
   fi
@@ -104,7 +105,7 @@ show_menu() {
   show_logo
   echo -e "${GREEN}Меню Dria Node:${NC}"
   echo "1. 📥 Встановити ноду"
-  echo "2. 🚀 Запустити ноду"
+  echo "2. 🚀 Запустити ноду (screen)"
   echo "3. ⏹️ Зупинити ноду"
   echo "4. 📊 Статус ноди"
   echo "5. 📜 Переглянути логи"
