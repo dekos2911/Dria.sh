@@ -19,37 +19,32 @@ show_logo() {
   echo -e "${NC}"
 }
 
-install_node() {
-  echo -e "${YELLOW}➡️ Починаємо встановлення ноди Dria...${NC}"
+install_and_start_node() {
+  echo -e "${YELLOW}➡️ Починаємо встановлення та запуск ноди Dria...${NC}"
 
   if lsof -i :4001 >/dev/null; then
     echo -e "${RED}❌ Порт 4001 вже зайнятий!${NC}"
     return 1
   fi
 
+  # Оновлення системи
   echo -e "${YELLOW}🔄 Оновлюємо систему...${NC}"
   sudo apt update && sudo apt upgrade -y
   sudo apt install -y wget curl git jq lsof unzip
 
+  # Встановлення Ollama
   echo -e "${YELLOW}⬇️ Встановлюємо Ollama...${NC}"
   curl -fsSL https://ollama.com/install.sh | sh
 
+  # Встановлення Dria Launcher
   echo -e "${YELLOW}⬇️ Встановлюємо Dria Launcher...${NC}"
   curl -fsSL https://dria.co/launcher | bash
 
   source ~/.bashrc
+
   echo -e "${GREEN}✅ Встановлення завершено!${NC}"
-}
 
-start_node() {
-  echo -e "${YELLOW}🚀 Запуск ноди у screen-сесії...${NC}"
-
-  if ! command -v dkn-compute-launcher &>/dev/null; then
-    echo -e "${RED}❌ Нода не встановлена! Спочатку виконайте встановлення.${NC}"
-    return 1
-  fi
-
-  # Перевіряємо, чи вже існує screen-сесія
+  # Перевіряємо, чи вже існує screen-сесія для ноди
   if screen -list | grep -q "dria_node"; then
     echo -e "${YELLOW}ℹ️ Нода вже працює у screen-сесії.${NC}"
     echo -e "${GREEN}🖥️ Щоб підключитись до сесії: screen -r dria_node${NC}"
@@ -59,6 +54,7 @@ start_node() {
 
   echo -e "${YELLOW}📡 Створюємо нову screen-сесію для запуску ноди...${NC}"
 
+  # Запускаємо процес у новій screen-сесії
   screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee -a '$LOG_FILE'"
   echo -e "${GREEN}✅ Нода запущена у screen-сесії! Логи можна переглядати в реальному часі.${NC}"
 }
@@ -108,13 +104,12 @@ show_menu() {
   clear
   show_logo
   echo -e "${GREEN}Меню Dria Node:${NC}"
-  echo "1. 📥 Встановити ноду"
-  echo "2. 🚀 Запустити ноду"
-  echo "3. ⏹️ Зупинити ноду"
-  echo "4. 📊 Статус ноди"
-  echo "5. 📜 Переглянути логи"
-  echo "6. 🗑️ Видалити ноду"
-  echo "7. ❌ Вийти"
+  echo "1. 📥 Встановити та запустити ноду"
+  echo "2. ⏹️ Зупинити ноду"
+  echo "3. 📊 Статус ноди"
+  echo "4. 📜 Переглянути логи"
+  echo "5. 🗑️ Видалити ноду"
+  echo "6. ❌ Вийти"
   echo -ne "\n${YELLOW}Ваш вибір: ${NC}"
 }
 
@@ -123,13 +118,12 @@ while true; do
   read -r choice
 
   case $choice in
-    1) install_node ;;
-    2) start_node ;;
-    3) stop_node ;;
-    4) node_status ;;
-    5) view_logs ;;
-    6) remove_node ;;
-    7) echo -e "${GREEN}👋 До зустрічі!${NC}"; exit 0 ;;
+    1) install_and_start_node ;;
+    2) stop_node ;;
+    3) node_status ;;
+    4) view_logs ;;
+    5) remove_node ;;
+    6) echo -e "${GREEN}👋 До зустрічі!${NC}"; exit 0 ;;
     *) echo -e "${RED}❗ Невірний вибір!${NC}" ;;
   esac
 
