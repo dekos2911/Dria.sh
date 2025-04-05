@@ -52,15 +52,23 @@ install_node() {
 }
 
 start_node() {
-  if command -v dkn-compute-launcher >/dev/null; then
-    echo "▶ Запуск ноди..."
-    screen -dmS dexnode dkn-compute-launcher start
-    echo "✔ Нода запущена у вікні screen (dexnode)"
-    sleep 2
-  else
+  if ! command -v dkn-compute-launcher >/dev/null; then
     echo "❗ Лаунчер не знайдено. Спочатку виконайте встановлення."
     sleep 2
+    return
   fi
+
+  echo "▶ Запуск ноди..."
+  echo "▶ Ви будете бачити хід роботи ноди у вікні screen"
+  echo "▶ Для виходу з режиму перегляду (без зупинки ноди):"
+  echo "   Натисніть Ctrl+A, потім D"
+  echo "▶ Для повернення до перегляду: screen -r dexnode"
+  echo -e "\nЗапускаю ноду через 5 секунд..."
+  sleep 5
+
+  # Запускаємо ноду у інтерактивному режимі screen
+  screen -S dexnode -m -d bash -c "dkn-compute-launcher start; exec bash"
+  screen -r dexnode
 }
 
 node_status() {
@@ -92,7 +100,7 @@ while true; do
   show_logo
   echo -e "\nМеню:"
   echo "1. Встановити ноду"
-  echo "2. Запустити ноду"
+  echo "2. Запустити ноду (інтерактивно)"
   echo "4. Перевірити статус"
   echo "6. Видалити ноду"
   echo "7. Вийти"
