@@ -29,7 +29,7 @@ install_node() {
 
   echo -e "${YELLOW}🔄 Оновлюємо систему...${NC}"
   sudo apt update && sudo apt upgrade -y
-  sudo apt install -y wget curl git jq lsof unzip
+  sudo apt install -y wget curl git jq lsof unzip screen
 
   echo -e "${YELLOW}⬇️ Встановлюємо Ollama...${NC}"
   curl -fsSL https://ollama.com/install.sh | sh
@@ -49,8 +49,11 @@ start_node() {
     return 1
   fi
 
-  echo -e "${GREEN}🔧 Запускаємо процес...${NC}"
-  dkn-compute-launcher start 2>&1 | tee "$LOG_FILE"
+  echo -e "${GREEN}🔧 Запускаємо процес у screen-сесії...${NC}"
+  screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee '$LOG_FILE'"
+  echo -e "${GREEN}🟢 Нода працює у фоні. Для перегляду логів виконайте:${NC}"
+  echo -e "${YELLOW}screen -r dria_node${NC}"
+  echo -e "${YELLOW}Ctrl+A D${NC} — щоб приховати логи та повернутись до терміналу"
 }
 
 stop_node() {
@@ -64,6 +67,8 @@ stop_node() {
   else
     echo -e "${YELLOW}ℹ️ Нода вже зупинена або не знайдена.${NC}"
   fi
+
+  screen -S dria_node -X quit &>/dev/null
 }
 
 view_logs() {
