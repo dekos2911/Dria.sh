@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Кольори для виводу
+# Кольори
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+LOG_FILE="$HOME/dria.log"
 
 show_logo() {
   echo -e "${RED}"
@@ -18,118 +20,109 @@ show_logo() {
 }
 
 install_node() {
-  echo -e "${YELLOW}Починаємо встановлення ноди Dria...${NC}"
+  echo -e "${YELLOW}➡️ Починаємо встановлення ноди Dria...${NC}"
   
-  # Перевірка портів
   if lsof -i :4001 >/dev/null; then
-    echo -e "${RED}Помилка: Порт 4001 вже використовується!${NC}"
+    echo -e "${RED}❌ Порт 4001 вже зайнятий!${NC}"
     return 1
   fi
 
-  # Оновлення системи
-  echo -e "${YELLOW}Оновлюємо пакети...${NC}"
+  echo -e "${YELLOW}🔄 Оновлюємо систему...${NC}"
   sudo apt update && sudo apt upgrade -y
-  sudo apt install -y wget curl git jq lsof screen unzip
+  sudo apt install -y wget curl git jq lsof unzip
 
-  # Встановлення Ollama
-  echo -e "${YELLOW}Встановлюємо Ollama...${NC}"
+  echo -e "${YELLOW}⬇️ Встановлюємо Ollama...${NC}"
   curl -fsSL https://ollama.com/install.sh | sh
 
-  # Встановлення Dria
-  echo -e "${YELLOW}Встановлюємо Dria Launcher...${NC}"
+  echo -e "${YELLOW}⬇️ Встановлюємо Dria Launcher...${NC}"
   curl -fsSL https://dria.co/launcher | bash
 
   source ~/.bashrc
-  echo -e "${GREEN}Нода Dria успішно встановлена!${NC}"
+  echo -e "${GREEN}✅ Встановлення завершено!${NC}"
 }
 
 start_node() {
-  echo -e "${YELLOW}Запускаємо ноду Dria...${NC}"
+  echo -e "${YELLOW}🚀 Запуск ноди...${NC}"
   
-  if ! command -v dkn-compute-launcher >/dev/null; then
-    echo -e "${RED}Помилка: Спочатку встановіть ноду!${NC}"
+  if ! command -v dkn-compute-launcher &>/dev/null; then
+    echo -e "${RED}❌ Нода не встановлена! Спочатку виконайте встановлення.${NC}"
     return 1
   fi
 
-  screen -dmS dria_node bash -c "dkn-compute-launcher start 2>&1 | tee ~/dria.log"
-  echo -e "${GREEN}Нода запущена у фоновому режимі.${NC}"
-  echo -e "Для перегляду логів: ${YELLOW}screen -r dria_node${NC}"
-  echo -e "Для виходу з перегляду: ${YELLOW}Ctrl+A, D${NC}"
+  echo -e "${GREEN}🔧 Запускаємо процес...${NC}"
+  dkn-compute-launcher start 2>&1 | tee "$LOG_FILE"
 }
 
 stop_node() {
-  echo -e "${YELLOW}Зупиняємо ноду Dria...${NC}"
+  echo -e "${YELLOW}🛑 Зупинка ноди...${NC}"
   
-  if screen -list | grep -q "dria_node"; then
-    screen -ls | grep dria_node | cut -d. -f1 | xargs kill
-    echo -e "${GREEN}Нода успішно зупинена.${NC}"
+  PID=$(pgrep -f "dkn-compute-launcher")
+
+  if [[ -n "$PID" ]]; then
+    kill "$PID"
+    echo -e "${GREEN}✅ Нода зупинена (PID: $PID)${NC}"
   else
-    echo -e "${YELLOW}Нода не була запущена.${NC}"
+    echo -e "${YELLOW}ℹ️ Нода вже зупинена або не знайдена.${NC}"
   fi
 }
 
 view_logs() {
-  if [ ! -f ~/dria.log ]; then
-    echo -e "${RED}Файл логів не знайдено. Спочатку запустіть ноду.${NC}"
+  if [[ ! -f "$LOG_FILE" ]]; then
+    echo -e "${RED}❌ Файл логів не знайдено. Спочатку запустіть ноду.${NC}"
     return 1
   fi
-  
-  echo -e "${YELLOW}Останні 20 рядків логів:${NC}"
-  tail -n 20 ~/dria.log
-  echo -e "\n${YELLOW}Для перегляду в реальному часі: ${GREEN}tail -f ~/dria.log${NC}"
+
+  echo -e "${YELLOW}📜 Перегляд логів (натисніть Ctrl+C для виходу):${NC}"
+  tail -f "$LOG_FILE"
 }
 
 node_status() {
-  echo -e "${YELLOW}Статус ноди Dria:${NC}"
+  echo -e "${YELLOW}📊 Перевірка статусу ноди:${NC}"
   
-  if screen -list | grep -q "dria_node"; then
-    echo -e "${GREEN}🟢 Нода працює${NC}"
-    echo -e "PID: $(pgrep -f "dkn-compute")"
+  if pgrep -f "dkn-compute-launcher" &>/dev/null; then
+    echo -e "${GREEN}🟢 Нода активна (PID: $(pgrep -f dkn-compute-launcher))${NC}"
   else
-    echo -e "${RED}🔴 Нода не працює${NC}"
+    echo -e "${RED}🔴 Нода неактивна${NC}"
   fi
+}
+
+remove_node() {
+  stop_node
+  echo -e "${YELLOW}🗑️ Видаляємо ноду...${NC}"
+  dkn-compute-launcher uninstall
+  rm -rf ~/.dria "$LOG_FILE"
+  echo -e "${GREEN}✅ Нода успішно видалена.${NC}"
 }
 
 show_menu() {
   clear
   show_logo
-  echo -e "\n${GREEN}Меню управління нодою Dria:${NC}"
+  echo -e "${GREEN}Меню Dria Node:${NC}"
   echo "1. 📥 Встановити ноду"
   echo "2. 🚀 Запустити ноду"
   echo "3. ⏹️ Зупинити ноду"
-  echo "4. 📊 Перевірити статус"
+  echo "4. 📊 Статус ноди"
   echo "5. 📜 Переглянути логи"
-  echo "6. 🛑 Видалити ноду"
+  echo "6. 🗑️ Видалити ноду"
   echo "7. ❌ Вийти"
-  echo -ne "\n${YELLOW}Виберіть пункт меню: ${NC}"
+  echo -ne "\n${YELLOW}Ваш вибір: ${NC}"
 }
 
 while true; do
   show_menu
   read -r choice
-  
+
   case $choice in
     1) install_node ;;
     2) start_node ;;
     3) stop_node ;;
     4) node_status ;;
     5) view_logs ;;
-    6) 
-      stop_node
-      echo -e "${YELLOW}Видаляємо ноду...${NC}"
-      dkn-compute-launcher uninstall
-      rm -rf ~/.dria ~/dria.log
-      echo -e "${GREEN}Нода успішно видалена!${NC}"
-      ;;
-    7) 
-      echo -e "${GREEN}Дякуємо за використання!${NC}"
-      exit 0
-      ;;
-    *) 
-      echo -e "${RED}Невірний вибір! Спробуйте ще раз.${NC}"
-      ;;
+    6) remove_node ;;
+    7) echo -e "${GREEN}👋 До зустрічі!${NC}"; exit 0 ;;
+    *) echo -e "${RED}❗ Невірний вибір!${NC}" ;;
   esac
-  
-  echo -e "\n${YELLOW}Натисніть Enter для продовження...${NC}"
+
+  echo -e "\n${YELLOW}Натисніть Enter, щоб продовжити...${NC}"
   read -r
 done
