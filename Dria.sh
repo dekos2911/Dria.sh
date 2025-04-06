@@ -12,6 +12,55 @@ show_logo() {
   echo -e '\e[0m'
 }
 
+install_node() {
+  echo "▶ Початок встановлення ноди DEX..."
+  
+  if lsof -i :4001 | grep -q LISTEN; then
+    echo "❗ Помилка: порт 4001 вже використовується"
+    sleep 2
+    return
+  fi
+
+  sudo apt-get update -y && sudo apt-get upgrade -y
+  sudo apt install -y wget make tar screen nano unzip lz4 gcc git jq
+
+  if ! command -v ollama >/dev/null; then
+    echo "Встановлення Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh || {
+      echo "❗ Не вдалося встановити Ollama"
+      sleep 2
+      return
+    }
+  fi
+
+  echo "Спробую встановити лаунчер..."
+  if ! curl -fsSL https://dria.co/launcher | bash; then
+    echo "❗ Не вдалося встановити лаунчер автоматично"
+    echo "Спробуйте встановити його вручну:"
+    echo "curl -fsSL https://dria.co/launcher | bash"
+    sleep 3
+    return
+  fi
+
+  source ~/.bashrc
+  echo "✔ Встановлення завершено успішно!"
+  sleep 2
+}
+
+start_node() {
+  if ! command -v dkn-compute-launcher >/dev/null; then
+    echo "❗ Лаунчер не знайдено. Спочатку виконайте встановлення."
+    sleep 2
+    return
+  fi
+
+  echo "▶ Запуск ноди в реальному часі..."
+  echo "▶ Для виходу з перегляду: Ctrl+A, потім D"
+  sleep 3
+  screen -S dexnode -m -d bash -c "dkn-compute-launcher start; exec bash"
+  screen -r dexnode
+}
+
 view_logs() {
   echo -e "\nВиберіть тип логів:"
   echo "1. Поточні логи ноди (screen)"
@@ -45,41 +94,32 @@ view_logs() {
       fi
       read -p "Натисніть Enter для продовження..."
       ;;
-    4)
-      return
-      ;;
-    *)
-      echo "Невірний вибір"
-      sleep 1
-      ;;
+    4) return ;;
+    *) echo "Невірний вибір"; sleep 1 ;;
   esac
 }
 
-install_node() {
-  echo "▶ Початок встановлення ноди DEX..."
-  # ... (ваш існуючий код встановлення без змін)
-}
-
-start_node() {
-  if ! command -v dkn-compute-launcher >/dev/null; then
-    echo "❗ Лаунчер не знайдено. Спочатку виконайте встановлення."
-    sleep 2
-    return
-  fi
-
-  echo "▶ Запуск ноди в реальному часі..."
-  echo "▶ Для виходу з перегляду: Ctrl+A, потім D"
-  sleep 3
-  screen -S dexnode -m -d bash -c "dkn-compute-launcher start; exec bash"
-  screen -r dexnode
-}
-
 node_status() {
-  # ... (ваш існуючий код перевірки статусу)
+  if command -v dkn-compute-launcher >/dev/null; then
+    dkn-compute-launcher points
+  else
+    echo "Лаунчер не встановлено"
+  fi
+  read -p "Натисніть Enter для продовження..."
 }
 
 remove_node() {
-  # ... (ваш існуючий код видалення)
+  if command -v dkn-compute-launcher >/dev/null; then
+    echo "▶ Видалення ноди..."
+    dkn-compute-launcher uninstall
+  fi
+  
+  sudo rm -rf ~/.dex/
+  if screen -list | grep -q "dexnode"; then
+    screen -S dexnode -X quit
+  fi
+  echo "✔ Нода видалена успішно!"
+  sleep 2
 }
 
 while true; do
@@ -87,7 +127,7 @@ while true; do
   echo -e "\nМеню:"
   echo "1. Встановити ноду"
   echo "2. Запустити ноду (реальний час)"
-  echo "3. Перевірити логи"     # Новий пункт
+  echo "3. Перевірити логи"
   echo "4. Перевірити статус"
   echo "5. Видалити ноду"
   echo "6. Вийти"
@@ -96,7 +136,7 @@ while true; do
   case $choice in
     1) install_node ;;
     2) start_node ;;
-    3) view_logs ;;  # Новий пункт меню
+    3) view_logs ;;
     4) node_status ;;
     5) remove_node ;;
     6) exit 0 ;;
